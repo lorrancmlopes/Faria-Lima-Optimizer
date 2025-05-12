@@ -10,11 +10,6 @@ type Stock = {
     Returns: float array
 }
 
-/// Cap return values to reasonable bounds to avoid extreme values
-let capReturn (returnValue: float) =
-    // Cap returns at ±50% (0.5) daily moves to prevent extreme values
-    max -0.5 (min 0.5 returnValue)
-
 /// Load stock data from a CSV file
 let loadStockData (filePath: string) =
     if not (File.Exists(filePath)) then
@@ -47,13 +42,13 @@ let loadStockData (filePath: string) =
                     | false, _ -> failwith $"Invalid price data for ticker {ticker}")
                 
             // Calculate daily returns: (price_t - price_{t-1}) / price_{t-1}
-            // and cap them to reasonable values to prevent extreme returns
+            // No capping applied - allowing all return values as-is
             let returns = 
                 prices
                 |> Array.pairwise
                 |> Array.map (fun (prevPrice, currPrice) -> 
                     if prevPrice <= 0.0 then 0.0 // Prevent division by zero
-                    else capReturn ((currPrice - prevPrice) / prevPrice))
+                    else (currPrice - prevPrice) / prevPrice)
             
             { Ticker = ticker; Prices = prices; Returns = returns })
     
