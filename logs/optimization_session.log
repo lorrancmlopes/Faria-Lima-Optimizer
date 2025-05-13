@@ -1,0 +1,10 @@
+[2024-07-17 12:00:00] mkdir -p optimization_project/chat-logs
+[2024-07-17 12:00:01] mkdir -p optimization_project/results
+[2024-07-17 12:00:02] cd optimization_project && echo "The project is ready to run with: dotnet fsi Main.fsx" 
+[2024-07-17 14:30:00] cd /Users/lorran/Documents/Insper/ProgFunc/Projeto_II/optimization_project && dotnet fsi Main.fsx
+[2024-07-17 15:45:00] Added benchmark capability to compare parallel vs. sequential execution modes (dotnet fsi Main.fsx --sequential)
+2025-05-12 17:27:14 Fixed syntax error in Main.fsx where let binding in None branch was missing a result value
+2025-05-12 17:29:22 Fixed missing 'rec' keyword in Optimize.fs for mutually recursive functions
+2025-05-12 17:31:18 Fixed Optimize.fs by moving processStockCombination inside findOptimalPortfolioVectorized function to access outer variables properly
+2025-05-12 17:47:17 Modified output to hide extreme return and volatility values, focusing only on Sharpe ratio
+2025-05-12 21:29:10 Modified benchmark logging to preserve all results with timestamped filenames and append to log files

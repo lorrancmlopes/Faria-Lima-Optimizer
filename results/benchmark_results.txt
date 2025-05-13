@@ -1,0 +1,14 @@
+[2025-05-12 18:15:54] parallel mode: 25 stocks, 1000 portfolios/combo, 0 max combos, 100 batch size => Sharpe=4.813605 (1197.60 sec) on 10 cores
+[2025-05-12 18:25:10] sequential mode: 25 stocks, 1000 portfolios/combo, 0 max combos, 100 batch size => Sharpe=5.026406 (1739.90 sec) on 10 cores
+[2025-05-12 18:25:23] sequential mode: 25 stocks, 1000 portfolios/combo, 0 max combos, 100 batch size => Sharpe=4.962913 (1736.95 sec) on 10 cores
+[2025-05-12 18:36:43] parallel mode: 25 stocks, 1000 portfolios/combo, 0 max combos, 100 batch size => Sharpe=4.938921 (624.37 sec) on 10 cores
+[2025-05-12 19:03:21] sequential mode: 25 stocks, 1000 portfolios/combo, 0 max combos, 100 batch size => Sharpe=4.763055 (1426.47 sec) on 10 cores
+[2025-05-12 19:03:26] sequential mode: 25 stocks, 1000 portfolios/combo, 0 max combos, 100 batch size => Sharpe=4.873631 (1428.62 sec) on 10 cores
+[2025-05-12 21:53:36] sequential mode: 25 stocks, 1000 portfolios/combo, 0 max combos, 100 batch size => Sharpe=4.849264 (1440.63 sec) on 10 cores
+[2025-05-12 21:53:58] sequential mode: 25 stocks, 1000 portfolios/combo, 0 max combos, 100 batch size => Sharpe=4.761889 (1460.73 sec) on 10 cores
+[2025-05-12 22:19:13] sequential mode: 25 stocks, 1000 portfolios/combo, 0 max combos, 100 batch size => Sharpe=4.912871 (1431.21 sec) on 10 cores
+[2025-05-12 22:19:20] sequential mode: 25 stocks, 1000 portfolios/combo, 0 max combos, 100 batch size => Sharpe=4.806380 (1435.60 sec) on 10 cores
+[2025-05-12 22:44:28] parallel mode: 25 stocks, 1000 portfolios/combo, 0 max combos, 100 batch size => Sharpe=4.983862 (601.71 sec) on 10 cores
+[2025-05-12 22:54:32] parallel mode: 25 stocks, 1000 portfolios/combo, 0 max combos, 100 batch size => Sharpe=5.037874 (595.61 sec) on 10 cores
+[2025-05-12 23:04:35] parallel mode: 25 stocks, 1000 portfolios/combo, 0 max combos, 100 batch size => Sharpe=4.991324 (595.34 sec) on 10 cores
+[2025-05-12 23:14:26] parallel mode: 25 stocks, 1000 portfolios/combo, 0 max combos, 100 batch size => Sharpe=5.383095 (582.14 sec) on 10 cores

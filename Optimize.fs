@@ -28,6 +28,7 @@ let findOptimalPortfolioVectorized
     (batchSize: int)
     (progressInterval: int) 
     (maxCombinations: int)
+    (useParallelism: bool)
     (progressHandler: ProgressHandler) =
     
     printfn "Using vectorized optimization with batch size: %d" batchSize
@@ -60,8 +61,14 @@ let findOptimalPortfolioVectorized
     
     // Determine the degree of parallelism based on available processors
     // Use fewer cores to avoid excessive memory usage
-    let maxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount / 2)
-    printfn "Using %d threads for parallel processing" maxDegreeOfParallelism
+    let maxDegreeOfParallelism = 
+        if useParallelism then 
+            let cores = Math.Max(1, Environment.ProcessorCount / 2)
+            printfn "Using %d threads for parallel processing" cores
+            cores
+        else
+            printfn "Running in sequential mode (no parallelism)"
+            1
     
     // Process combinations in batches to reduce memory pressure
     let combinationBatchSize = 10 // Process 10 combinations at a time
@@ -70,105 +77,115 @@ let findOptimalPortfolioVectorized
     // Track when the last progress report was made
     let mutable lastProgressTime = DateTime.Now
     
+    // Function to process one stock combination - defined inside to access outer variables
+    let processStockCombination (stockCombo: Data.Stock array) =
+        // Get the return matrix for this stock combination
+        let returnMatrix = Data.createReturnsMatrix stockCombo
+        
+        // Initialize variables to track the best portfolio for this combination
+        let mutable localBestSharpeRatio = Double.MinValue
+        let mutable localBestWeights = [||]
+        let mutable localBestAnnualReturn = 0.0
+        let mutable localBestAnnualVolatility = 0.0
+        
+        // Process portfolios in batches for better performance
+        let batchesToProcess = (numPortfoliosPerCombination + batchSize - 1) / batchSize
+        
+        for batchIndex in 0..batchesToProcess-1 do
+            // Determine the size of this batch
+            let currentBatchSize = min batchSize (numPortfoliosPerCombination - batchIndex * batchSize)
+            if currentBatchSize <= 0 then () else
+            
+            // Generate a batch of random weight vectors
+            let weightBatch = Simulate.generateRandomWeightsBatch stockCombo.Length currentBatchSize 
+            
+            // Calculate metrics for all portfolios in the batch at once
+            let portfolioMetrics = Portfolio.calculatePortfolioMetricsBatch returnMatrix weightBatch
+            
+            // Find the best portfolio in this batch
+            if portfolioMetrics.Length > 0 then
+                let bestBatchIndex, (bestBatchSharpe, bestBatchReturn, bestBatchVol) =
+                    portfolioMetrics 
+                    |> Array.indexed 
+                    |> Array.maxBy (fun (_, (sharpe, _, _)) -> sharpe)
+                
+                // Update local best if this batch has a better portfolio
+                if bestBatchSharpe > localBestSharpeRatio then
+                    localBestSharpeRatio <- bestBatchSharpe
+                    localBestWeights <- weightBatch.[bestBatchIndex]
+                    localBestAnnualReturn <- bestBatchReturn
+                    localBestAnnualVolatility <- bestBatchVol
+        
+        // Thread-safe update of the best overall portfolio
+        lock lockObj (fun () ->
+            if localBestSharpeRatio > bestSharpeRatio then
+                bestSharpeRatio <- localBestSharpeRatio
+                bestAnnualReturn <- localBestAnnualReturn
+                bestAnnualVolatility <- localBestAnnualVolatility
+                bestPortfolio <- Some {
+                    Portfolio.Stocks = stockCombo
+                    Portfolio.Weights = localBestWeights
+                    Portfolio.AnnualReturn = localBestAnnualReturn
+                    Portfolio.AnnualVolatility = localBestAnnualVolatility
+                    Portfolio.SharpeRatio = localBestSharpeRatio
+                }
+                
+            // Update progress counter
+            processedCombinations <- processedCombinations + 1
+            
+            // Report progress at specified intervals or if enough time has passed
+            let now = DateTime.Now
+            let timeSinceLastReport = now - lastProgressTime
+            
+            if processedCombinations % progressInterval = 0 || 
+               processedCombinations = totalCombinations ||
+               timeSinceLastReport.TotalMinutes >= 5.0 then
+                
+                lastProgressTime <- now
+                let elapsed = stopwatch.Elapsed
+                
+                // Estimate remaining time
+                let estimatedTimeRemaining =
+                    if processedCombinations > 0 then
+                        let timePerCombination = elapsed.TotalMilliseconds / float processedCombinations
+                        let remainingCombinations = totalCombinations - processedCombinations
+                        let remainingTimeMs = timePerCombination * float remainingCombinations
+                        Some(TimeSpan.FromMilliseconds(remainingTimeMs))
+                    else
+                        None
+                
+                // Call the progress handler
+                progressHandler {
+                    TotalCombinations = totalCombinations
+                    CurrentCombination = processedCombinations
+                    ElapsedTime = elapsed
+                    EstimatedTimeRemaining = estimatedTimeRemaining
+                    BestSharpeRatio = bestSharpeRatio
+                    BestAnnualReturn = bestAnnualReturn
+                    BestAnnualVolatility = bestAnnualVolatility
+                    BestPortfolio = bestPortfolio
+                }
+        )
+    
     for batchIdx in 0..(totalBatches - 1) do
         // Get the current batch of combinations
         let startIdx = batchIdx * combinationBatchSize
         let endIdx = min (startIdx + combinationBatchSize) combinations.Length
         let combinationBatch = combinations.[startIdx..endIdx-1]
         
-        // Process this batch of combinations with limited parallelism
-        let options = ParallelOptions()
-        options.MaxDegreeOfParallelism <- maxDegreeOfParallelism
-        
-        Parallel.ForEach(combinationBatch, options, (fun stockCombo ->
-            // Get the return matrix for this stock combination
-            let returnMatrix = Data.createReturnsMatrix stockCombo
+        // Either process in parallel or sequentially based on the flag
+        if useParallelism then
+            // Process this batch of combinations with limited parallelism
+            let options = ParallelOptions()
+            options.MaxDegreeOfParallelism <- maxDegreeOfParallelism
             
-            // Initialize variables to track the best portfolio for this combination
-            let mutable localBestSharpeRatio = Double.MinValue
-            let mutable localBestWeights = [||]
-            let mutable localBestAnnualReturn = 0.0
-            let mutable localBestAnnualVolatility = 0.0
-            
-            // Process portfolios in batches for better performance
-            let batchesToProcess = (numPortfoliosPerCombination + batchSize - 1) / batchSize
-            
-            for batchIndex in 0..batchesToProcess-1 do
-                // Determine the size of this batch
-                let currentBatchSize = min batchSize (numPortfoliosPerCombination - batchIndex * batchSize)
-                if currentBatchSize <= 0 then () else
-                
-                // Generate a batch of random weight vectors
-                let weightBatch = Simulate.generateRandomWeightsBatch stockCombo.Length currentBatchSize 
-                
-                // Calculate metrics for all portfolios in the batch at once
-                let portfolioMetrics = Portfolio.calculatePortfolioMetricsBatch returnMatrix weightBatch
-                
-                // Find the best portfolio in this batch
-                if portfolioMetrics.Length > 0 then
-                    let bestBatchIndex, (bestBatchSharpe, bestBatchReturn, bestBatchVol) =
-                        portfolioMetrics 
-                        |> Array.indexed 
-                        |> Array.maxBy (fun (_, (sharpe, _, _)) -> sharpe)
-                    
-                    // Update local best if this batch has a better portfolio
-                    if bestBatchSharpe > localBestSharpeRatio then
-                        localBestSharpeRatio <- bestBatchSharpe
-                        localBestWeights <- weightBatch.[bestBatchIndex]
-                        localBestAnnualReturn <- bestBatchReturn
-                        localBestAnnualVolatility <- bestBatchVol
-            
-            // Thread-safe update of the best overall portfolio
-            lock lockObj (fun () ->
-                if localBestSharpeRatio > bestSharpeRatio then
-                    bestSharpeRatio <- localBestSharpeRatio
-                    bestAnnualReturn <- localBestAnnualReturn
-                    bestAnnualVolatility <- localBestAnnualVolatility
-                    bestPortfolio <- Some {
-                        Portfolio.Stocks = stockCombo
-                        Portfolio.Weights = localBestWeights
-                        Portfolio.AnnualReturn = localBestAnnualReturn
-                        Portfolio.AnnualVolatility = localBestAnnualVolatility
-                        Portfolio.SharpeRatio = localBestSharpeRatio
-                    }
-                    
-                // Update progress counter
-                processedCombinations <- processedCombinations + 1
-                
-                // Report progress at specified intervals or if enough time has passed
-                let now = DateTime.Now
-                let timeSinceLastReport = now - lastProgressTime
-                
-                if processedCombinations % progressInterval = 0 || 
-                   processedCombinations = totalCombinations ||
-                   timeSinceLastReport.TotalMinutes >= 5.0 then
-                    
-                    lastProgressTime <- now
-                    let elapsed = stopwatch.Elapsed
-                    
-                    // Estimate remaining time
-                    let estimatedTimeRemaining =
-                        if processedCombinations > 0 then
-                            let timePerCombination = elapsed.TotalMilliseconds / float processedCombinations
-                            let remainingCombinations = totalCombinations - processedCombinations
-                            let remainingTimeMs = timePerCombination * float remainingCombinations
-                            Some(TimeSpan.FromMilliseconds(remainingTimeMs))
-                        else
-                            None
-                    
-                    // Call the progress handler
-                    progressHandler {
-                        TotalCombinations = totalCombinations
-                        CurrentCombination = processedCombinations
-                        ElapsedTime = elapsed
-                        EstimatedTimeRemaining = estimatedTimeRemaining
-                        BestSharpeRatio = bestSharpeRatio
-                        BestAnnualReturn = bestAnnualReturn
-                        BestAnnualVolatility = bestAnnualVolatility
-                        BestPortfolio = bestPortfolio
-                    }
-            )
-        )) |> ignore
+            Parallel.ForEach(combinationBatch, options, (fun stockCombo ->
+                processStockCombination stockCombo
+            )) |> ignore
+        else
+            // Sequential processing
+            for stockCombo in combinationBatch do
+                processStockCombination stockCombo
         
         // Force garbage collection after each batch to free memory
         GC.Collect()
@@ -199,14 +216,14 @@ let defaultProgressHandler (progress: OptimizationProgress) =
     
     let remainingTimeStr = 
         match progress.EstimatedTimeRemaining with
-        | Some timeRemaining -> 
+        | Some timeSpan -> 
             sprintf "%02d:%02d:%02d" 
-                timeRemaining.Hours 
-                timeRemaining.Minutes 
-                timeRemaining.Seconds
-        | None -> "calculating..."
+                timeSpan.Hours 
+                timeSpan.Minutes 
+                timeSpan.Seconds
+        | None -> "--:--:--"
     
-    printfn "[%d/%d] %.2f%% complete - Elapsed: %02d:%02d:%02d - Remaining: %s - Best Sharpe: %.4f - Return: %.2f%% - Volatility: %.2f%%" 
+    printfn "[%d/%d] %.2f%% complete - Elapsed: %02d:%02d:%02d - Remaining: %s - Best Sharpe: %.4f" 
         progress.CurrentCombination
         progress.TotalCombinations
         percentComplete
@@ -214,6 +231,4 @@ let defaultProgressHandler (progress: OptimizationProgress) =
         progress.ElapsedTime.Minutes
         progress.ElapsedTime.Seconds
         remainingTimeStr
-        progress.BestSharpeRatio
-        (progress.BestAnnualReturn * 100.0)
-        (progress.BestAnnualVolatility * 100.0) 
+        progress.BestSharpeRatio 

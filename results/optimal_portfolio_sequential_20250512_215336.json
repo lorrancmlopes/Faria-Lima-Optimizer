@@ -1,0 +1,113 @@
+{
+  "BatchSize": 100,
+  "ExecutionMode": "sequential",
+  "ExecutionTime": "00:24:00.6324767",
+  "MaxCombinations": 0,
+  "PortfoliosPerCombination": 1000,
+  "SelectionSize": 25,
+  "SharpeRatio": 4.849263839137571,
+  "Stocks": [
+    {
+      "Ticker": "AAPL",
+      "Weight": 0.006892804235548327
+    },
+    {
+      "Ticker": "AMGN",
+      "Weight": 0.02403141377920749
+    },
+    {
+      "Ticker": "AXP",
+      "Weight": 0.10370869772174746
+    },
+    {
+      "Ticker": "CAT",
+      "Weight": 0.027773071629944163
+    },
+    {
+      "Ticker": "CSCO",
+      "Weight": 0.006221538745155524
+    },
+    {
+      "Ticker": "CVX",
+      "Weight": 0.027014185381018106
+    },
+    {
+      "Ticker": "DIS",
+      "Weight": 0.02525045737187922
+    },
+    {
+      "Ticker": "GS",
+      "Weight": 0.06482917776660788
+    },
+    {
+      "Ticker": "HD",
+      "Weight": 0.05574111414818436
+    },
+    {
+      "Ticker": "HON",
+      "Weight": 0.0008754344700679004
+    },
+    {
+      "Ticker": "IBM",
+      "Weight": 0.08768862466278009
+    },
+    {
+      "Ticker": "JNJ",
+      "Weight": 0.03084690079023783
+    },
+    {
+      "Ticker": "JPM",
+      "Weight": 0.0009577238640694244
+    },
+    {
+      "Ticker": "KO",
+      "Weight": 0.004669435105614001
+    },
+    {
+      "Ticker": "MCD",
+      "Weight": 0.0077230115755609835
+    },
+    {
+      "Ticker": "MRK",
+      "Weight": 0.004838885475182272
+    },
+    {
+      "Ticker": "MSFT",
+      "Weight": 0.10989622829848221
+    },
+    {
+      "Ticker": "NKE",
+      "Weight": 0.0905477591936434
+    },
+    {
+      "Ticker": "NVDA",
+      "Weight": 0.05208173454913221
+    },
+    {
+      "Ticker": "PG",
+      "Weight": 0.00037347748416121393
+    },
+    {
+      "Ticker": "SHW",
+      "Weight": 0.00383631514120338
+    },
+    {
+      "Ticker": "TRV",
+      "Weight": 0.10790571657281336
+    },
+    {
+      "Ticker": "V",
+      "Weight": 0.006409119836385151
+    },
+    {
+      "Ticker": "VZ",
+      "Weight": 0.08892210534009931
+    },
+    {
+      "Ticker": "WMT",
+      "Weight": 0.06096506686127482
+    }
+  ],
+  "TimeElapsedMs": 1440632,
+  "Timestamp": "2025-05-12 21:53:36"
+}

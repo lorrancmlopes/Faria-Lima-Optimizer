@@ -10,20 +10,28 @@ open System.IO
 open System.Diagnostics
 open System.Text.Json
 
+let args = Environment.GetCommandLineArgs()
+
+let mutable useParallelism = true
+for arg in args do
+    match arg.ToLower() with
+    | "--sequential" | "-s" -> useParallelism <- false
+    | _ -> ()
+
 // Configuration
 let dataFilePath = Path.Combine(__SOURCE_DIRECTORY__, "data", "dow_jones_close_prices_aug_dec_2024.csv")
 let outputPath = Path.Combine(__SOURCE_DIRECTORY__, "results")
-let selectionSize = 25 // Original selection size (25 out of 30 stocks)
-let numPortfoliosPerCombination = 1000 // Original number of portfolios per combination
+let selectionSize = 25 // Reduced selection size for faster runs
+let numPortfoliosPerCombination = 1000 
 let batchSize = 100 // Batch size for vectorized operations
-let progressReportInterval = 500 // Increased reporting interval for long runs
+let progressReportInterval = 500 
+let maxCombinationsToProcess = 0  // 0 means process ALL combinations
 
 // Ensure output directory exists
 Directory.CreateDirectory(outputPath) |> ignore
 
-// Log command to chat logs
 let logCommand cmd =
-    let logDir = Path.Combine(__SOURCE_DIRECTORY__, "chat-logs")
+    let logDir = Path.Combine(__SOURCE_DIRECTORY__, "logs")
     Directory.CreateDirectory(logDir) |> ignore
     
     let timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss")
@@ -31,18 +39,50 @@ let logCommand cmd =
     
     File.AppendAllText(logFilePath, $"[{DateTime.Now}] {cmd}\n")
 
-// Log the run
-logCommand "Running complete portfolio optimization with all 142,506 combinations"
 
-// Print header
+// Log benchmark information for later comparison
+let logBenchmark (executionMode: string) (parameters: string) (executionTime: TimeSpan) (result: string) =
+    let logDir = Path.Combine(__SOURCE_DIRECTORY__, "results")
+    Directory.CreateDirectory(logDir) |> ignore
+    
+    // Always append to benchmark log files instead of overwriting
+    let logFilePath = Path.Combine(logDir, "benchmarks.log")
+    let timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+    let processorCount = Environment.ProcessorCount
+    
+    // Format: timestamp,mode,selectionSize,portfoliosPerCombo,maxCombos,batchSize,totalMilliseconds,result,cpuCores
+    let logEntry = sprintf "%s,%s,%d,%d,%d,%d,%.2f,%s,%d\n" 
+                       timestamp executionMode selectionSize numPortfoliosPerCombination 
+                       maxCombinationsToProcess batchSize executionTime.TotalMilliseconds 
+                       result processorCount
+    
+    if not (File.Exists(logFilePath)) then
+        File.WriteAllText(logFilePath, "Timestamp,ExecutionMode,SelectionSize,PortfoliosPerCombo,MaxCombinations,BatchSize,TimeMs,BestSharpeRatio,CPUCores\n")
+    
+    File.AppendAllText(logFilePath, logEntry)
+    
+    let readableLogPath = Path.Combine(logDir, "benchmark_results.txt")
+    let readableEntry = sprintf "[%s] %s mode: %d stocks, %d portfolios/combo, %d max combos, %d batch size => %s (%.2f sec) on %d cores\n" 
+                            timestamp executionMode selectionSize numPortfoliosPerCombination 
+                            maxCombinationsToProcess batchSize result executionTime.TotalSeconds processorCount
+    
+    File.AppendAllText(readableLogPath, readableEntry)
+    
+    let timestampForFile = DateTime.Now.ToString("yyyyMMdd_HHmmss")
+    logFilePath
+
+let executionMode = if useParallelism then "parallel" else "sequential"
+logCommand $"Running portfolio optimization in {executionMode} mode with {selectionSize} stocks, {numPortfoliosPerCombination} portfolios per combination, limited to {maxCombinationsToProcess} combinations"
+
 printfn "=========================================================="
 printfn "      Portfolio Optimization Simulator in F# (Vectorized)"
 printfn "=========================================================="
+printfn "Execution mode: %s" (if useParallelism then "PARALLEL" else "SEQUENTIAL")
 printfn "Loading stock data from: %s" dataFilePath
 printfn "Selection size: %d stocks" selectionSize
 printfn "Portfolios per combination: %d" numPortfoliosPerCombination
 printfn "Batch size for vectorization: %d" batchSize
-printfn "Processing all possible combinations"
+printfn "Max combinations: %d" maxCombinationsToProcess
 printfn "=========================================================="
 
 // Main execution
@@ -59,7 +99,8 @@ let bestPortfolio =
         numPortfoliosPerCombination 
         batchSize
         progressReportInterval
-        0 // Process all combinations (0 means no limit)
+        maxCombinationsToProcess
+        useParallelism
         Optimize.defaultProgressHandler
 
 // Print results
@@ -73,8 +114,6 @@ match bestPortfolio with
     
     printfn "\nBest Portfolio:"
     printfn "- Sharpe Ratio: %.6f" portfolio.SharpeRatio
-    printfn "- Annual Return: %.2f%%" (portfolio.AnnualReturn * 100.0)
-    printfn "- Annual Volatility: %.2f%%" (portfolio.AnnualVolatility * 100.0)
     
     printfn "\nSelected Stocks and Weights:"
     portfolio.Stocks
@@ -87,9 +126,14 @@ match bestPortfolio with
     let resultObj = 
         {| 
             SharpeRatio = portfolio.SharpeRatio
-            AnnualReturn = portfolio.AnnualReturn
-            AnnualVolatility = portfolio.AnnualVolatility
             ExecutionTime = stopwatch.Elapsed.ToString()
+            ExecutionMode = executionMode
+            SelectionSize = selectionSize
+            PortfoliosPerCombination = numPortfoliosPerCombination
+            MaxCombinations = maxCombinationsToProcess
+            BatchSize = batchSize
+            TimeElapsedMs = stopwatch.ElapsedMilliseconds
+            Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
             Stocks = 
                 portfolio.Stocks
                 |> Array.mapi (fun i stock -> 
@@ -100,7 +144,8 @@ match bestPortfolio with
     jsonOptions.WriteIndented <- true
     let json = JsonSerializer.Serialize(resultObj, jsonOptions)
     
-    let outputFilePath = Path.Combine(outputPath, "optimal_portfolio.json")
+    let timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss")
+    let outputFilePath = Path.Combine(outputPath, $"optimal_portfolio_{executionMode}_{timestamp}.json")
     File.WriteAllText(outputFilePath, json)
     
     // Save results to a CSV file
@@ -110,15 +155,35 @@ match bestPortfolio with
          |> Array.mapi (fun i stock -> sprintf "%s,%.6f" stock.Ticker portfolio.Weights.[i])
          |> String.concat "\n")
     
-    let csvOutputFilePath = Path.Combine(outputPath, "optimal_portfolio.csv")
+    let csvOutputFilePath = Path.Combine(outputPath, $"optimal_portfolio_{executionMode}_{timestamp}.csv")
     File.WriteAllText(csvOutputFilePath, csvOutput)
+    
+    // Log benchmark results
+    let resultSummary = sprintf "Sharpe=%.6f" portfolio.SharpeRatio
+    let benchmarkLogPath = logBenchmark executionMode 
+                               $"s{selectionSize}_p{numPortfoliosPerCombination}_m{maxCombinationsToProcess}_b{batchSize}" 
+                               stopwatch.Elapsed 
+                               resultSummary
     
     printfn "\nResults saved to:"
     printfn "- %s" outputFilePath
     printfn "- %s" csvOutputFilePath
+    printfn "- Benchmark logged to: %s" benchmarkLogPath
     
 | None ->
     printfn "No valid portfolio found!"
+    // Log benchmark results for failed run
+    let resultSummary = "NoValidPortfolio"
+    let benchmarkLogPath = logBenchmark executionMode 
+                               $"s{selectionSize}_p{numPortfoliosPerCombination}_m{maxCombinationsToProcess}_b{batchSize}" 
+                               stopwatch.Elapsed 
+                               resultSummary
+    () 
 
+printfn "\nExecuted in %s mode. Total time: %s" executionMode (stopwatch.Elapsed.ToString(@"hh\:mm\:ss\.fff"))
+printfn "\nTo compare execution modes, run with:"
+printfn "dotnet fsi Main.fsx             # Parallel mode (default)"
+printfn "dotnet fsi Main.fsx --sequential  # Sequential mode"
+printfn "\nBenchmark information saved for later comparison."
 printfn "\nPress any key to exit..."
 Console.ReadKey() |> ignore 
