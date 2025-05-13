@@ -4,7 +4,7 @@ This project implements a portfolio optimization simulator in F# using functiona
 
 ## Objective
 
-The goal is to identify the optimal long-only portfolio of stocks from the Dow Jones index that maximizes the Sharpe Ratio, using historical price data.
+The goal is to use historical price data to identify the optimal long-only portfolio of stocks from the Dow Jones index that maximizes the Sharpe Ratio.
 
 ## Project Structure
 
@@ -38,6 +38,13 @@ The simulator performs the following steps:
    - Annualized volatility
    - Sharpe Ratio (disregarding risk-free rate)
 5. Find the portfolio with the highest Sharpe Ratio
+
+
+## Results:
+
+![image](https://github.com/user-attachments/assets/e48a0ba5-0196-4d5b-8169-716c7941bae4)
+
+![image](https://github.com/user-attachments/assets/50cb2326-57c8-473e-8bab-f58c3dcfe3a9)
 
 ## Functional Programming Features
 
@@ -108,4 +115,13 @@ The program outputs:
 
 - F# 
 - MathNet.Numerics 5.0.0 
+
+
+
+# Python analysis (optional)
+```bash
+python3 -m pip install pandas numpy matplotlib seaborn
+cd analysis
+python3 portfolio_analysis.py
+```
 
