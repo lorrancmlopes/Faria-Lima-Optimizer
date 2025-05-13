@@ -70,7 +70,7 @@ Both modes use vectorized calculations for portfolio metrics to optimize perform
 
 Before running the project:
 
-## F# + C# Project Installation
+## F# Project Installation
 
 1. **Install .NET 9.0**
    Download and install from:
@@ -117,11 +117,37 @@ The program outputs:
 - MathNet.Numerics 5.0.0 
 
 
+## Data Files
 
-# Python analysis (optional)
-```bash
-python3 -m pip install pandas numpy matplotlib seaborn
-cd analysis
-python3 portfolio_analysis.py
-```
+- `dow_jones_close_prices_aug_dec_2024.csv`: Contains the closing prices for 30 Dow Jones stocks from August to December 2024.
+
+## Download Script Usage
+
+The `download.py` script lets you download historical stock price data from Yahoo Finance for a specified list of tickers and a date range.
+
+### Prerequisites
+
+* **Create a virtual environment**:
+
+  ```sh
+  cd data
+  python3 -m venv venv
+  source venv/bin/activate  # On Windows: venv\Scripts\activate
+  ```
+
+* **Install the required dependencies**:
+
+  ```sh
+  pip install yfinance pandas
+  ```
+
+### Running the Script
+
+* **Download the default Dow Jones data**:
+
+  ```sh
+  python download.py
+  ```
+
+
 
