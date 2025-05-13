@@ -75,10 +75,10 @@ The project can be configured by modifying parameters in `Main.fsx`:
 
 ```fsharp
 // Key parameters to adjust
-let selectionSize = 10                   // Number of stocks to select from 30
-let numPortfoliosPerCombination = 500    // Portfolios to generate per combination
+let selectionSize = 20                   // Number of stocks to select from 30
+let numPortfoliosPerCombination = 1000    // Portfolios to generate per combination
 let batchSize = 50                       // Portfolios to process at once
-let maxCombinationsToProcess = 1000      // Limit total combinations (0 = process all)
+let maxCombinationsToProcess = 0      // Limit total combinations (0 = process all)
 ```
 
 ### Execution Modes
